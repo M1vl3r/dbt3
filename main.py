@@ -2,7 +2,7 @@ import mysql.connector
 
 # Функция для выполнения SQL-запроса
 def execute_query(connection, query):
-    cursor = connection.cursor()
+    cursor = connection.cursor(dictionary=True)
     cursor.execute(query)
     result = cursor.fetchall()
     cursor.close()
@@ -14,9 +14,8 @@ def connect_to_database():
         connection = mysql.connector.connect(
             host='127.0.0.1',
             port=3306,
-            database='dbt6',
+            database='city_duma',
             user='root',
-            password='ваш_пароль'  # Укажите свой пароль
         )
         return connection
     except mysql.connector.Error as err:
@@ -34,49 +33,48 @@ def main():
 
     try:
         # Запрос номера задания
-        task_number = int(input("Введите номер задания (1-4): "))
+        task_number = int(input("Введите номер задания (1-7): "))
 
         # Выполнение соответствующего SQL-запроса
         if task_number == 1:
-            query = "SELECT SUM(Copies) AS TotalCopies FROM Keeping WHERE ID_Vault = 1 AND ID_Book = 1;"
+            query = "SELECT CommissionName, Chairman FROM Commissions;"
             result = execute_query(connection, query)
             print("Результат запроса:")
             print(result)
         elif task_number == 2:
-            query = """
-                SELECT COUNT(DISTINCT p.ID_Faculty) AS FacultiesCount,
-                       GROUP_CONCAT(DISTINCT f.Name_F) AS FacultyNames
-                FROM Process p
-                JOIN Faculties f ON p.ID_Faculty = f.ID_Faculty
-                WHERE p.ID_Book = 1 AND p.ID_Faculty IN (
-                    SELECT p.ID_Faculty FROM Keeping k WHERE k.ID_Vault = 1
-                );
-            """
+            # Добавление нового члена комиссии
+            query = "INSERT INTO CommissionMembers (CommissionID, MemberName) VALUES (1, 'Новый член');"
+            execute_query(connection, query)
+            print("Новый член комиссии добавлен успешно.")
+        elif task_number == 3:
+            query = "SELECT MemberName, CommissionName FROM CommissionMembers JOIN Commissions USING (CommissionID);"
             result = execute_query(connection, query)
             print("Результат запроса:")
             print(result)
-        elif task_number == 3:
-            query = """
-                INSERT INTO Books (ID_Book, Name, Author, Publishers, Year_P, Cost, Scientific)
-                VALUES (6, 'Новая книга', 'Новый автор', 'Новое издательство', 2023, 29.99, 1)
-                ON DUPLICATE KEY UPDATE
-                Name = VALUES(Name), Author = VALUES(Author), Publishers = VALUES(Publishers),
-                Year_P = VALUES(Year_P), Cost = VALUES(Cost), Scientific = VALUES(Scientific);
-            """
-            execute_query(connection, query)
-            print("Запрос выполнен успешно.")
         elif task_number == 4:
-            query = """
-                INSERT INTO Vault (ID_Vault, FIO_Leader, Address, Phone, Capacity)
-                VALUES (6, 'Новый руководитель', 'Новый адрес', '9876543210', 150)
-                ON DUPLICATE KEY UPDATE
-                FIO_Leader = VALUES(FIO_Leader), Address = VALUES(Address),
-                Phone = VALUES(Phone), Capacity = VALUES(Capacity);
-            """
+            # Добавление новой комиссии
+            query = "INSERT INTO Commissions (CommissionName, Chairman) VALUES ('Новая комиссия', 'Председатель');"
             execute_query(connection, query)
-            print("Запрос выполнен успешно.")
+            print("Новая комиссия добавлена успешно.")
+        elif task_number == 5:
+            # За указанный интервал дат и комиссии выдать список членов с указанием количества пропущенных заседаний
+            query = "SELECT MemberName, CommissionName, MissedMeetings FROM CommissionMembers WHERE MeetingDate BETWEEN '2022-01-01' AND '2022-12-31';"
+            result = execute_query(connection, query)
+            print("Результат запроса:")
+            print(result)
+        elif task_number == 6:
+            # Добавление нового заседания
+            query = "INSERT INTO Meetings (CommissionID, MeetingDate, Organizer) VALUES (1, '2022-12-31', 'Организатор');"
+            execute_query(connection, query)
+            print("Новое заседание добавлено успешно.")
+        elif task_number == 7:
+            # По каждой комиссии показать количество проведенных заседаний в указанный период времени
+            query = "SELECT CommissionName, COUNT(*) AS MeetingsCount FROM Meetings JOIN Commissions USING (CommissionID) WHERE MeetingDate BETWEEN '2022-01-01' AND '2022-12-31' GROUP BY CommissionName;"
+            result = execute_query(connection, query)
+            print("Результат запроса:")
+            print(result)
         else:
-            print("Некорректный номер задания. Введите число от 1 до 4.")
+            print("Некорректный номер задания. Введите число от 1 до 7.")
     finally:
         # Закрываем соединение с базой данных
         connection.close()
